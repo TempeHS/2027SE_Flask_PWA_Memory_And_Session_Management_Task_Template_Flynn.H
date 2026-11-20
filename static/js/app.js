@@ -7,6 +7,8 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/serviceWorker.js");
 }
 
+const MAX_ACTIVITY_ITEMS = 5;
+
 /**
  * Add a message to the top of the "Live updates" list on the menu page.
  * README Step 8 limits how many messages are kept.
@@ -18,8 +20,10 @@ function addActivity(message) {
   item.className = "list-group-item small";
   item.textContent = message;
   feed.prepend(item);
+  while (feed.children.length > MAX_ACTIVITY_ITEMS) {
+    feed.lastElementChild.remove();
+  }
 }
-
 /**
  * Ask the server for this user's order and update the page to match.
  * It runs every 2 seconds, so every open tab shows the same order.
@@ -27,11 +31,11 @@ function addActivity(message) {
  */
 async function refreshMyOrder() {
   try {
-    const response = await fetch("/my-order.json?t=" + Date.now());
+    const response = await fetch("/my-order.json", { cache: "no-store" });
     const myOrder = await response.json();
     const total = (myOrder.total / 100).toFixed(2);
     document.getElementById("order-count").textContent = myOrder.count;
-    localStorage.setItem("myOrder-" + Date.now(), JSON.stringify(myOrder));
+    localStorage.setItem("myOrder", JSON.stringify(myOrder));
     addActivity(
       `${new Date().toLocaleTimeString()}: ${myOrder.count} items, $${total}`,
     );
@@ -42,7 +46,6 @@ async function refreshMyOrder() {
     );
   }
 }
-
 if (document.getElementById("order-count")) {
   refreshMyOrder();
   setInterval(refreshMyOrder, 2000);

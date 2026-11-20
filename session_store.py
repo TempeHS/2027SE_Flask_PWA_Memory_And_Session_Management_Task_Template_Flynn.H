@@ -27,8 +27,6 @@ def create_session():
         "order": [],
         "created": time.time(),
         "last_seen": time.time(),
-        "menu": dbHandler.menu_get("%"),
-        "page_cache": [],
     }
     return session_id
 

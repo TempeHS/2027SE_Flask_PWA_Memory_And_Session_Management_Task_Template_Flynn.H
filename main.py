@@ -6,6 +6,7 @@ with two lines (the attach_lab import and the attach_lab(app) call). It lives
 in the memory_lab folder, which you do not need to edit.
 """
 
+from collections import deque
 import re
 import time
 
@@ -37,7 +38,7 @@ CSP = (
     "base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 )
 
-REQUEST_LOG = []
+REQUEST_LOG = deque(maxlen=100)
 
 
 @app.before_request
@@ -46,9 +47,7 @@ def log_request():
 
     README Step 7 limits how much this log can hold.
     """
-    REQUEST_LOG.append(
-        {"time": time.time(), "path": request.path, "headers": dict(request.headers)}
-    )
+    REQUEST_LOG.append((time.time(), request.method, request.path))
 
 
 def current_session():
@@ -119,9 +118,9 @@ def index():
     """
     data = current_session()
     category = selected_category()
-    menu = [item for item in data["menu"] if category in ("%", item["category"])]
+    menu = dbHandler.menu_get(category)
     items, total = order_details(data["order"])
-    html = render_template(
+    return render_template(
         "index.html",
         data=data,
         menu=menu,
@@ -131,8 +130,6 @@ def index():
         total=total,
         placed=request.args.get("placed", type=int),
     )
-    data["page_cache"].append(html)
-    return html
 
 
 @app.route("/add", methods=["POST"])
