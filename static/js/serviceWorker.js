@@ -3,7 +3,7 @@
  * README Step 10 changes what it caches and when old caches are deleted.
  */
 
-const CACHE_NAME = "canteen-v1";
+const CACHE_NAME = "canteen-v2";
 const STATIC_ASSETS = [
   "/offline.html",
   "/static/css/bootstrap.min.css",
@@ -34,7 +34,18 @@ self.addEventListener("install", (event) => {
  * README Step 10 makes it delete caches left by older versions.
  */
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches
+      .keys()
+      .then((names) =>
+        Promise.all(
+          names
+            .filter((name) => name !== CACHE_NAME)
+            .map((name) => caches.delete(name)),
+        ),
+      )
+      .then(() => self.clients.claim()),
+  );
 });
 
 /**
@@ -42,18 +53,18 @@ self.addEventListener("activate", (event) => {
  * README Step 10 limits caching to static files and the offline page.
  */
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      })
-      .catch(() =>
-        caches
-          .match(event.request)
-          .then((cached) => cached || caches.match("/offline.html")),
-      ),
-  );
+  const url = new URL(event.request.url);
+  if (event.request.method !== "GET" || url.origin !== location.origin) return;
+
+  if (url.pathname.startsWith("/static/")) {
+    event.respondWith(
+      caches
+        .match(event.request)
+        .then((cached) => cached || fetch(event.request)),
+    );
+  } else if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match("/offline.html")),
+    );
+  }
 });
